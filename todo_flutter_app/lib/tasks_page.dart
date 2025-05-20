@@ -11,8 +11,9 @@ class TaskPage extends StatefulWidget {
 }
 
 class _TaskPageState extends State<TaskPage> {
-  List tasks = [];
-  final taskController = TextEditingController();
+  List _tasks = [];
+  final _controller = TextEditingController();
+  bool _loading = true;
 
   @override
   void initState() {
@@ -21,7 +22,7 @@ class _TaskPageState extends State<TaskPage> {
   }
 
   Future<String?> _getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access');
   }
 
@@ -29,35 +30,44 @@ class _TaskPageState extends State<TaskPage> {
     final token = await _getToken();
     final response = await http.get(
       Uri.parse('http://10.0.2.2:8000/api/todos/'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
+    print('LOAD_TASKS: ${response.statusCode} ${response.body}');
     if (response.statusCode == 200) {
       setState(() {
-        tasks = json.decode(response.body);
+        _tasks = json.decode(response.body);
+        _loading = false;
       });
     }
   }
 
   Future<void> _addTask() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
     final token = await _getToken();
-    await http.post(
+    final res = await http.post(
       Uri.parse('http://10.0.2.2:8000/api/todos/'),
       headers: {
         'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: json.encode({'title': taskController.text}),
+      body: json.encode({'title': text}),
     );
-    taskController.clear();
+    print('ADD_TASK: ${res.statusCode} ${res.body}');
+    _controller.clear();
     _loadTasks();
   }
 
   Future<void> _deleteTask(int id) async {
     final token = await _getToken();
-    await http.delete(
+    final res = await http.delete(
       Uri.parse('http://10.0.2.2:8000/api/todos/$id/'),
       headers: {'Authorization': 'Bearer $token'},
     );
+    print('DELETE_TASK: ${res.statusCode}');
     _loadTasks();
   }
 
@@ -71,23 +81,31 @@ class _TaskPageState extends State<TaskPage> {
             padding: const EdgeInsets.all(8),
             child: Row(
               children: [
-                Expanded(child: TextField(controller: taskController, decoration: const InputDecoration(labelText: 'New Task'))),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(labelText: 'New Task'),
+                  ),
+                ),
                 IconButton(onPressed: _addTask, icon: const Icon(Icons.add)),
               ],
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: tasks.length,
-              itemBuilder: (context, index) => ListTile(
-                title: Text(tasks[index]['title']),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteTask(tasks[index]['id']),
+          if (_loading)
+            const Expanded(child: Center(child: CircularProgressIndicator())),
+          if (!_loading)
+            Expanded(
+              child: ListView.builder(
+                itemCount: _tasks.length,
+                itemBuilder: (_, i) => ListTile(
+                  title: Text(_tasks[i]['title']),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _deleteTask(_tasks[i]['id']),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
