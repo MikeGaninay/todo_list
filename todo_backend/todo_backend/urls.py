@@ -1,18 +1,16 @@
+# todo_backend/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from todos.views import RegisterView
+from todos.views import MyTokenObtainPairView, MyTokenRefreshView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # registration
-    path('api/register/', RegisterView.as_view(), name='register'),
+    # 1) JWT token endpoints first, so /api/token/ doesn't recurse into todos.urls
+    path('api/token/',         MyTokenObtainPairView.as_view(),   name='token_obtain_pair'),
+    path('api/token/refresh/', MyTokenRefreshView.as_view(),      name='token_refresh'),
 
-    # JWT auth
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-
-    # todos API
-    path('api/todos/', include('todos.urls')),
+    # 2) Everything else under /api/ comes from todos.urls
+    path('api/', include('todos.urls')),
 ]
