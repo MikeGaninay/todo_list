@@ -1,88 +1,100 @@
+// lib/login_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart';            // for Response
 import 'auth_service.dart';
 import 'tasks_page.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
-
+  const LoginPage({Key? key}) : super(key: key);
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _username = TextEditingController();
-  final _password = TextEditingController();
-  String _error = '';
+  final _u = TextEditingController();
+  final _p = TextEditingController();
   bool _loading = false;
 
-  Future<void> _login() async {
+  Future<void> _submit() async {
+    final u = _u.text.trim(), p = _p.text.trim();
+    if (u.isEmpty || p.isEmpty) {
+      _showError('Enter both username and password');
+      return;
+    }
     setState(() => _loading = true);
 
-    final response = await AuthService.login(
-      _username.text,
-      _password.text,
-    );
+    Response resp;
+    try {
+      resp = await AuthService.login(u, p);
+    } catch (e) {
+      _showError('Network error');
+      setState(() => _loading = false);
+      return;
+    }
 
-    setState(() => _loading = false);
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access', data['access']);
-      await prefs.setString('refresh', data['refresh']);
-      print('TOKENS SAVED → access=${data['access']}');
-
+    if (resp.statusCode == 200) {
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const TaskPage()),
       );
     } else {
-      // Show full JSON error
-      setState(() => _error = 'Login failed: ${response.body}');
+      _showError('Login failed (${resp.statusCode})');
     }
+    setState(() => _loading = false);
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Padding(
+      appBar: AppBar(title: const Text('Log In')),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            const SizedBox(height: 60),
             TextField(
-              controller: _username,
-              decoration: const InputDecoration(labelText: 'Username'),
+              controller: _u,
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                border: OutlineInputBorder(),
+              ),
+              textInputAction: TextInputAction.next,
             ),
+            const SizedBox(height: 16),
             TextField(
-              controller: _password,
-              decoration: const InputDecoration(labelText: 'Password'),
+              controller: _p,
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
               obscureText: true,
+              onSubmitted: (_) => _submit(),
             ),
-            const SizedBox(height: 20),
-            if (_loading)
-              const CircularProgressIndicator()
-            else ...[
-              ElevatedButton(
-                onPressed: _login,
-                child: const Text('Login'),
+            const SizedBox(height: 24),
+            _loading
+                ? const CircularProgressIndicator()
+                : SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      child: const Text('Log In'),
+                    ),
+                  ),
+            TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegisterPage()),
               ),
-              TextButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegisterPage()),
-                ),
-                child: const Text('Register'),
-              ),
-            ],
-            if (_error.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(_error, style: const TextStyle(color: Colors.red)),
-              ),
+              child: const Text("Don't have an account? Register"),
+            ),
           ],
         ),
       ),
