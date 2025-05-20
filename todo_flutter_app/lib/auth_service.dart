@@ -23,7 +23,7 @@ class AuthService {
     return prefs.getString('access') != null;
   }
 
-  /// Registers a new user, returns full response.
+  /// ✅ Registers a new user, returns full response.
   static Future<http.Response> register(
       String username, String email, String password) async {
     final uri = Uri.parse('$_baseUrl/register/');
