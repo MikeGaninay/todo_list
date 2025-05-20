@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
 
@@ -17,22 +18,22 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _register() async {
     setState(() => _loading = true);
-    final success = await AuthService.register(
+
+    final response = await AuthService.register(
       _username.text,
       _email.text,
       _password.text,
     );
+
     setState(() => _loading = false);
 
-    setState(() {
-      _message =
-          success ? 'Registration successful! Please log in.' : 'Registration failed';
-    });
-
-    if (success) {
-      // Wait a moment then pop back to login
+    if (response.statusCode == 201) {
+      setState(() => _message = 'Registration successful!');
       await Future.delayed(const Duration(seconds: 1));
       Navigator.pop(context);
+    } else {
+      // Show full JSON error
+      setState(() => _message = 'Registration failed: ${response.body}');
     }
   }
 
@@ -58,8 +59,9 @@ class _RegisterPageState extends State<RegisterPage> {
               obscureText: true,
             ),
             const SizedBox(height: 20),
-            if (_loading) const CircularProgressIndicator(),
-            if (!_loading)
+            if (_loading)
+              const CircularProgressIndicator()
+            else
               ElevatedButton(
                 onPressed: _register,
                 child: const Text('Register'),

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 import 'tasks_page.dart';
 import 'register_page.dart';
@@ -18,23 +20,28 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _login() async {
     setState(() => _loading = true);
-    final success = await AuthService.login(
+
+    final response = await AuthService.login(
       _username.text,
       _password.text,
     );
+
     setState(() => _loading = false);
 
-    if (success) {
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('access', data['access']);
+      await prefs.setString('refresh', data['refresh']);
+      print('TOKENS SAVED → access=${data['access']}');
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const TaskPage(),
-        ),
+        MaterialPageRoute(builder: (_) => const TaskPage()),
       );
     } else {
-      setState(() {
-        _error = 'Login failed: check credentials';
-      });
+      // Show full JSON error
+      setState(() => _error = 'Login failed: ${response.body}');
     }
   }
 
@@ -56,19 +63,21 @@ class _LoginPageState extends State<LoginPage> {
               obscureText: true,
             ),
             const SizedBox(height: 20),
-            if (_loading) const CircularProgressIndicator(),
-            if (!_loading)
+            if (_loading)
+              const CircularProgressIndicator()
+            else ...[
               ElevatedButton(
                 onPressed: _login,
                 child: const Text('Login'),
               ),
-            TextButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RegisterPage()),
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RegisterPage()),
+                ),
+                child: const Text('Register'),
               ),
-              child: const Text('Register'),
-            ),
+            ],
             if (_error.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
