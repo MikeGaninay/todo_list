@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
+    permission_classes = [permissions.AllowAny]
 
-def post(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         logger.debug(f"REGISTER request.data = {request.data}")
         response = super().post(request, *args, **kwargs)
         logger.debug(f"REGISTER response.status = {response.status_code}, data = {response.data}")
@@ -35,6 +36,7 @@ class TodoDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Todo.objects.filter(user=self.request.user)
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         logger.debug(f"TOKEN request.data = {request.data}")
